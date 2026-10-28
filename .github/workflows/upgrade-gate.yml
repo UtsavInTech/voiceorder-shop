@@ -1,0 +1,43 @@
+name: upgrade-gate
+
+# Created by `upgrade-gate init`. Runs when a pull request changes the shipped model (release/model.json):
+# a small fresh sample of tasks/my_tasks.jsonl goes to the old and new model (3 tries each, strict spending
+# cap), and the check fails on NO-GO. The verdict is also posted as one comment on the pull request.
+on:
+  pull_request:
+    paths:
+      - "release/model.json"
+      - "release/policy.json"
+      - "tasks/**"
+      - ".github/workflows/upgrade-gate.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gate:
+    name: upgrade-gate / my-tasks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read the model change
+        id: models
+        run: |
+          echo "candidate=$(python3 -c 'import json;print(json.load(open("release/model.json"))["model"])')" >> "$GITHUB_OUTPUT"
+          echo "baseline=$(git show origin/${{ github.base_ref }}:release/model.json | python3 -c 'import json,sys;print(json.load(sys.stdin)["model"])')" >> "$GITHUB_OUTPUT"
+      - uses: UtsavInTech/upgrade-gate@main
+        with:
+          name: my-tasks
+          mode: live
+          tasks: tasks/my_tasks.jsonl
+          n: "45"
+          budget: "2"
+          policy: release/policy.json
+          baseline: ${{ steps.models.outputs.baseline }}
+          candidate: ${{ steps.models.outputs.candidate }}
+          api-key: ${{ secrets.MODEL_API_KEY }}
+          comment: "true"

@@ -1,0 +1,4 @@
+{
+  "model": "spark-1.2@low",
+  "note": "The model and reasoning effort this app ships. A pull request that changes it runs the upgrade gate."
+}
